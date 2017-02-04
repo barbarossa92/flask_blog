@@ -1,8 +1,9 @@
-from flask import Flask
+from flask import Flask, render_template, request, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Somali92@127.0.0.1:3306/flask_blog_db'
+app.debug = True
 db = SQLAlchemy(app)
 
 
@@ -21,7 +22,16 @@ class User(db.Model):
 
 @app.route('/')
 def index():
-    return "<h1 style='color: red'>Hello world</h1>"
+    return render_template('add_user.html')
 
-if __name__== "__main__":
+
+@app.route('/post_user', methods=['POST'])
+def post_user():
+    user = User(request.form['username'], request.form['email'])
+    db.session.add(user)
+    db.session.commit()
+    return redirect(url_for('index'))
+
+
+if __name__ == "__main__":
     app.run()
