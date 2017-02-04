@@ -1,30 +1,50 @@
 from flask import Flask, render_template, request, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
+from flask.ext.security import  Security, SQLAlchemyUserDatastore, UserMixin, RoleMixin, login_required
+
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Somali92@127.0.0.1:3306/flask_blog_db'
+app.config['SECRET_KEY'] = 'secret-key'
+app.config['SECURITY_REGISTERABLE'] = True
 app.debug = True
 db = SQLAlchemy(app)
 
 
-class User(db.Model):
+roles_users = db.Table('roles_users',
+        db.Column('user_id', db.Integer(), db.ForeignKey('user.id')),
+        db.Column('role_id', db.Integer(), db.ForeignKey('role.id')))
+
+
+class Role(db.Model, RoleMixin):
+    id = db.Column(db.Integer(), primary_key=True)
+    name = db.Column(db.String(80), unique=True)
+    description = db.Column(db.String(255))
+
+
+class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True)
-    email = db.Column(db.String(120), unique=True)
+    email = db.Column(db.String(255), unique=True)
+    password = db.Column(db.String(255))
+    active = db.Column(db.Boolean())
+    confirmed_at = db.Column(db.DateTime())
+    roles = db.relationship('Role', secondary=roles_users,
+                            backref=db.backref('users', lazy='dynamic'))
 
-    def __init__(self, username, email):
-        self.username = username
-        self.email = email
 
-    def __repr__(self):
-        return '<User %r>' % self.username
+user_datastore = SQLAlchemyUserDatastore(db, User, Role)
+security = Security(app, user_datastore)
 
 
 @app.route('/')
 def index():
-    my_user = User.query.all()
-    one_user = User.query.filter_by(username="test2").first()
-    return render_template('add_user.html', my_user=my_user, one_user=one_user)
+    return render_template('add_user.html')
+
+
+@app.route('/profile/<username>')
+def profile(username):
+    user = User.query.filter_by(username=username).first()
+    return render_template('profile.html', user=user)
 
 
 @app.route('/post_user', methods=['POST'])
